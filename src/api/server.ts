@@ -3,7 +3,7 @@ import { redirect } from "@solidjs/router";
 import { useSession } from "vinxi/http";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { Users } from "../../drizzle/schema";
+import { Users } from "../../drizzle/schema/user";
 
 function validateUsername(username: unknown) {
   if (typeof username !== "string" || username.length < 3) {
@@ -18,20 +18,29 @@ function validatePassword(password: unknown) {
 }
 
 async function login(username: string, password: string) {
-  const user = db.select().from(Users).where(eq(Users.username, username)).get();
+  const user = db
+    .select()
+    .from(Users)
+    .where(eq(Users.username, username))
+    .get();
   if (!user || password !== user.password) throw new Error("Invalid login");
   return user;
 }
 
 async function register(username: string, password: string) {
-  const existingUser = db.select().from(Users).where(eq(Users.username, username)).get();
+  const existingUser = db
+    .select()
+    .from(Users)
+    .where(eq(Users.username, username))
+    .get();
   if (existingUser) throw new Error("User already exists");
   return db.insert(Users).values({ username, password }).returning().get();
 }
 
 function getSession() {
   return useSession({
-    password: process.env.SESSION_SECRET ?? "areallylongsecretthatyoushouldreplace"
+    password:
+      process.env.SESSION_SECRET ?? "areallylongsecretthatyoushouldreplace",
   });
 }
 
@@ -47,7 +56,7 @@ export async function loginOrRegister(formData: FormData) {
       ? register(username, password)
       : login(username, password));
     const session = await getSession();
-    await session.update(d => {
+    await session.update((d) => {
       d.userId = user.id;
     });
   } catch (err) {
@@ -57,9 +66,12 @@ export async function loginOrRegister(formData: FormData) {
 }
 
 export async function logout() {
-  const session = await getSession();
-  await session.update(d => (d.userId = undefined));
-  throw redirect("/login");
+  try {
+    const session = await getSession();
+    await session.update((d) => (d.userId = undefined));
+  } catch (e) {
+    throw redirect("/login");
+  }
 }
 
 export async function getUser() {
