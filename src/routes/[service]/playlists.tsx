@@ -1,12 +1,9 @@
 import {
-  getConvertedSpotifyCurrentUserPlaylists,
-  getAllSpotifyPlaylistTracks,
-} from "@/api/streamingServiceHelpers/streamingService/spotify";
-import {
-  getConvertedYoutubeCurrentUserPlaylists,
-  createYoutubePlaylist,
-  addBulkToYoutubePlaylist,
-} from "@/api/streamingServiceHelpers/streamingService/youtube";
+  getAllConvertedPlaylistTracks,
+  portPlaylistToService,
+} from "@/api/streamingServiceHelpers/portingHelpers";
+import { getConvertedSpotifyCurrentUserPlaylists } from "@/api/streamingServiceHelpers/streamingService/spotify";
+import { getConvertedYoutubeCurrentUserPlaylists } from "@/api/streamingServiceHelpers/streamingService/youtube";
 import {
   beatHopDataResponse,
   beatHopPlaylistType,
@@ -30,15 +27,23 @@ const getServicePlaylistsMap: Record<
 };
 
 async function getPlaylists(service: string) {
-  "use server";
   return getServicePlaylistsMap[service as streamingServiceType]();
 }
 
-async function portToYoutube(playlistName: string, playlistId: string) {
+async function portToService(
+  service: streamingServiceType,
+  playlistId: string,
+  playlistName: string
+) {
   "use server";
-  const newPlaylistId = await createYoutubePlaylist(playlistName);
-  const playlistTracks = await getAllSpotifyPlaylistTracks(playlistId);
-  await addBulkToYoutubePlaylist(newPlaylistId.id, playlistTracks);
+  await portPlaylistToService(
+    service,
+    getAllConvertedPlaylistTracks(service, playlistId),
+    playlistName
+  );
+  // const newPlaylistId = await createYoutubePlaylist(playlistName);
+  // const playlistTracks = await getAllSpotifyPlaylistTracks(playlistId);
+  // await addBulkToYoutubePlaylist(newPlaylistId.id, playlistTracks);
   return;
 }
 
@@ -58,7 +63,7 @@ export default function Playlists() {
             <Show when={params.service == "spotify"}>
               <button
                 onClick={() => {
-                  portToYoutube(playlist.name, playlist.id);
+                  portToService("youtube", playlist.name, playlist.id);
                 }}
               >
                 Port to Youtube

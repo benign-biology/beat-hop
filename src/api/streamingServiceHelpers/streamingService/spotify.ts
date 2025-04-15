@@ -98,7 +98,7 @@ export async function getConvertedSpotifyPlaylistTracks(playlistId: string) {
   return spotifyTracksToBeatHopData(await getSpotifyPlaylistTracks(playlistId));
 }
 
-export async function getAllSpotifyPlaylistTracks(playlistId: string) {
+export async function getSpotifyPlaylistAllTracks(playlistId: string) {
   const tracksPage0 = await getSpotifyPlaylistTracks(playlistId);
   const tracksPagesPromise = Array.from(
     { length: Math.floor(tracksPage0.total / itemLength) },
@@ -183,4 +183,14 @@ export async function addBulkToSpotifyPlaylist(
   for (const tracksChunk of spotifyTracksChunks) {
     await addToSpotifyPlaylist(playlistId, tracksChunk);
   }
+}
+
+export async function createPlaylistAndTransferSongsToSpotify(
+  playlistNmae: string,
+  playlistTracks: beatHopDataResponse<beatHopTrackType>
+) {
+  addBulkToSpotifyPlaylist(
+    (await createSpotifyPlaylist(playlistNmae, (await getSpotifyUser()).id)).id,
+    playlistTracks
+  );
 }

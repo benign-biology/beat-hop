@@ -1,3 +1,5 @@
+"use server";
+
 import { getUser } from "..";
 import { AuthKeys } from "../../../drizzle/schema/authKeys";
 import { db } from "../db";

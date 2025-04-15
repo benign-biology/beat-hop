@@ -15,7 +15,7 @@ export type YoutubeDataResponse<T> = {
     totalResults: number;
     resultsPerPage: number;
   };
-  items: [T];
+  items: Array<T>;
 };
 
 export type YoutubePlaylist = {

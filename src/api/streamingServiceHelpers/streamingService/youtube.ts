@@ -83,11 +83,12 @@ export async function getYoutubeCurrentUserPlaylists(): Promise<
 }
 
 export async function getYoutubePlaylistTracks(
-  playlistId: string
-  // offset: number = 0
+  playlistId: string,
+  token?: string
 ): Promise<YoutubeDataResponse<YoutubeTrack>> {
+  const pageToken = token ? `&pageToken=${token}` : "";
   const playlistTracksResponse = await youtubeFetch(
-    `playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=${itemLength}`
+    `playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=${itemLength}${pageToken}`
   );
   return await playlistTracksResponse.json();
 }
@@ -98,6 +99,54 @@ export async function getConvertedYoutubeCurrentUserPlaylists() {
 
 export async function getConvertedYoutubePlaylistTracks(playlistId: string) {
   return youtubeTracksToBeatHopData(await getYoutubePlaylistTracks(playlistId));
+}
+
+export async function getYoutubePlaylistAllTracks(playlistId: string) {
+  const tracksPage0 = await getYoutubePlaylistTracks(playlistId);
+  const tracksPagesResult = [tracksPage0];
+
+  var nextPageToken = tracksPage0.nextPageToken;
+
+  for (
+    let page = 1;
+    page < Math.floor(tracksPage0.pageInfo.totalResults / itemLength);
+    page++
+  ) {
+    tracksPagesResult.push(
+      await getYoutubePlaylistTracks(playlistId, nextPageToken)
+    );
+    nextPageToken =
+      tracksPagesResult[tracksPagesResult.length - 1].nextPageToken;
+  }
+  return await youtubeTracksToBeatHopData({
+    items: tracksPagesResult.flatMap((tracksList) => tracksList.items),
+    nextPageToken: tracksPage0.nextPageToken,
+    prevPageToken: tracksPage0.prevPageToken,
+    kind: tracksPage0.kind,
+    etag: tracksPage0.etag,
+    pageInfo: tracksPage0.pageInfo,
+  });
+
+  // while (tracksPageResult[tracksPageResult.length-1].nextPageToken)
+  // const tracksPagesPromise = Array.from(
+  //   { length: Math.floor(tracksPage0.total / itemLength) },
+  //   (_, i) => getYoutubePlaylistTracks(playlistId, (i + 1) * itemLength)
+  // );
+  // const tracksPagesResult = await Promise.all(tracksPagesPromise);
+  // const concatenatedTracks = {
+  //   href: tracksPage0.href,
+  //   limit: tracksPage0.limit,
+  //   next: tracksPage0.next,
+  //   offset: tracksPage0.offset,
+  //   previous: tracksPage0.previous,
+  //   total: tracksPage0.total,
+  //   items: [
+  //     ...tracksPage0.items,
+  //     ...tracksPagesResult.flatMap((page) => page.items),
+  //   ],
+  // };
+  // const data = youtubeTracksToBeatHopData(concatenatedTracks);
+  // return data;
 }
 
 export async function createYoutubePlaylist(
@@ -164,25 +213,12 @@ export async function addBulkToYoutubePlaylist(
   // return;
 }
 
-// export async function getAllSpotifyPlaylistTracks(playlistId: string) {
-//   const tracksPage0 = await getYoutubePlaylistTracks(playlistId);
-//   const tracksPagesPromise = Array.from(
-//     { length: Math.floor(tracksPage0.total / itemLength) },
-//     (_, i) => getYoutubePlaylistTracks(playlistId, (i + 1) * itemLength)
-//   );
-//   const tracksPagesResult = await Promise.all(tracksPagesPromise);
-//   const concatenatedTracks = {
-//     href: tracksPage0.href,
-//     limit: tracksPage0.limit,
-//     next: tracksPage0.next,
-//     offset: tracksPage0.offset,
-//     previous: tracksPage0.previous,
-//     total: tracksPage0.total,
-//     items: [
-//       ...tracksPage0.items,
-//       ...tracksPagesResult.flatMap((page) => page.items),
-//     ],
-//   };
-//   const data = youtubeTracksToBeatHopData(concatenatedTracks);
-//   return data;
-// }
+export async function createPlaylistAndTransferSongsToYoutube(
+  playlistNmae: string,
+  playlistTracks: beatHopDataResponse<beatHopTrackType>
+) {
+  addBulkToYoutubePlaylist(
+    (await createYoutubePlaylist(playlistNmae)).id,
+    playlistTracks
+  );
+}
