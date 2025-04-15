@@ -1,19 +1,22 @@
+// import { SpotifySearchResult } from "@/types/spotifyData";
+
 import {
   beatHopDataResponse,
   beatHopPlaylistType,
   beatHopTrackType,
-} from "~/types/beatHopStructure";
+} from "@/types/beatHopStructure";
 import {
   SpotifyDataResponse,
   SpotifyPlaylist,
+  SpotifySearchResult,
   SpotifyTrack,
-} from "~/types/spotifyData";
+} from "@/types/spotifyData";
 import {
   YoutubeDataResponse,
   YoutubePlaylist,
-  YoutubeSearchResult,
   YoutubeTrack,
-} from "~/types/youtubeData";
+  YoutubeSearchResult,
+} from "@/types/youtubeData";
 
 export function spotifyPlaylistsToBeathopData(
   spotifyPlaylists: SpotifyDataResponse<SpotifyPlaylist>
@@ -40,6 +43,7 @@ export function spotifyTracksToBeatHopData(
         image: item.track.album.images?.[0]?.url ?? "",
         name: item.track.name,
         id: item.track.id,
+        uri: item.track.uri,
         album: item.track.album.name,
         artists: item.track.artists.map((artist) => {
           return artist.name;
@@ -49,6 +53,12 @@ export function spotifyTracksToBeatHopData(
     prev: spotifyTracks.previous ?? "",
     next: spotifyTracks.next ?? "",
   };
+}
+
+export function spotifySearchResultToBeatHopData(
+  spotifyTracks: SpotifySearchResult
+): beatHopDataResponse<beatHopTrackType> {
+  return spotifyTracksToBeatHopData(spotifyTracks.tracks);
 }
 
 export function youtubePlaylistsToBeathopData(

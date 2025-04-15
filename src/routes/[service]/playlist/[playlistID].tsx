@@ -1,18 +1,12 @@
-import { A, createAsync, useParams } from "@solidjs/router";
-import { For } from "solid-js";
-import {
-  getAllSpotifyPlaylistTracks,
-  getConvertedSpotifyPlaylistTracks,
-} from "~/api/streamingServiceHelpers/spotify";
-import {
-  addBulkToYoutubePlaylist,
-  getConvertedYoutubePlaylistTracks,
-} from "~/api/streamingServiceHelpers/youtube";
+import { getConvertedSpotifyPlaylistTracks } from "@/api/streamingServiceHelpers/streamingService/spotify";
+import { getConvertedYoutubePlaylistTracks } from "@/api/streamingServiceHelpers/streamingService/youtube";
 import {
   beatHopDataResponse,
   beatHopTrackType,
-} from "~/types/beatHopStructure";
-import { streamingServiceType } from "~/types/streamingServices";
+} from "@/types/beatHopStructure";
+import { streamingServiceType } from "@/types/streamingServices";
+import { useParams, createAsync, A } from "@solidjs/router";
+import { For } from "solid-js";
 
 export const route = {
   preload() {

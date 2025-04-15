@@ -11,6 +11,6 @@ export async function getRegisteredServices() {
     await db
       .select({ streamingService: AuthKeys.streamingService })
       .from(AuthKeys)
-      .where(eq(AuthKeys.username, user.username))
+      .where(eq(AuthKeys.userId, user.username))
   ).map((row) => row.streamingService);
 }

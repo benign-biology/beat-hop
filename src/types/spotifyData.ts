@@ -146,3 +146,11 @@ export type SpotifyTrack = {
     is_local: boolean;
   };
 };
+
+export type SpotifySearchResult = {
+  tracks: SpotifyDataResponse<SpotifyTrack>;
+};
+
+export type SpotifyUser = {
+  id: string;
+};

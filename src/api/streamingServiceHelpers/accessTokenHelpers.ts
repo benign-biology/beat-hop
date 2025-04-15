@@ -3,11 +3,11 @@ import { AuthKeys } from "../../../drizzle/schema/authKeys";
 import { db } from "../db";
 import { and, eq } from "drizzle-orm";
 import { getCurrentTime } from "../time";
-import { grantType, tokenResponse } from "~/types/serviceAuthData";
-import { streamingServiceType } from "~/types/streamingServices";
+import { grantType, TokenResponse } from "@/types/serviceAuthData";
+import { streamingServiceType } from "@/types/streamingServices";
 
 export async function SaveUserAccessToken(
-  tokenResponse: tokenResponse,
+  tokenResponse: TokenResponse,
   streamingService: streamingServiceType
 ) {
   const user = await getUser();
@@ -15,14 +15,14 @@ export async function SaveUserAccessToken(
   await db
     .insert(AuthKeys)
     .values({
-      username: user.username,
+      userId: user.id,
       authCode: tokenResponse.access_token,
       refreshCode: tokenResponse.refresh_token,
       expiresIn: now + tokenResponse.expires_in,
       streamingService: streamingService,
     })
     .onConflictDoUpdate({
-      target: [AuthKeys.username, AuthKeys.streamingService],
+      target: [AuthKeys.userId, AuthKeys.streamingService],
       set: {
         authCode: tokenResponse.access_token,
         refreshCode: tokenResponse.refresh_token,
@@ -40,7 +40,7 @@ export async function clearUserAccessToken(
     .delete(AuthKeys)
     .where(
       and(
-        eq(AuthKeys.username, user.username),
+        eq(AuthKeys.userId, user.id),
         eq(AuthKeys.streamingService, streamingService)
       )
     );
@@ -50,7 +50,7 @@ export async function getStreamingServiceAccessTokenFromDB(
   getAccessTokenCallback: (
     grant_type: grantType,
     code: string
-  ) => Promise<tokenResponse>,
+  ) => Promise<TokenResponse>,
   streamingService: streamingServiceType
 ) {
   const user = await getUser();
@@ -60,7 +60,7 @@ export async function getStreamingServiceAccessTokenFromDB(
       .from(AuthKeys)
       .where(
         and(
-          eq(AuthKeys.username, user.username),
+          eq(AuthKeys.userId, user.id),
           eq(AuthKeys.streamingService, streamingService)
         )
       )

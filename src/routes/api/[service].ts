@@ -1,13 +1,13 @@
+import { SaveUserAccessToken } from "@/api/streamingServiceHelpers/accessTokenHelpers";
+import { getSpotifyAccessToken } from "@/api/streamingServiceHelpers/streamingService/spotify";
+import { getYoutubeAccessToken } from "@/api/streamingServiceHelpers/streamingService/youtube";
+import { grantType, TokenResponse } from "@/types/serviceAuthData";
+import { streamingServiceType } from "@/types/streamingServices";
 import type { APIEvent } from "@solidjs/start/server";
-import { SaveUserAccessToken } from "~/api/streamingServiceHelpers/accessTokenHelpers";
-import { getSpotifyAccessToken } from "~/api/streamingServiceHelpers/spotify";
-import { getYoutubeAccessToken } from "~/api/streamingServiceHelpers/youtube";
-import { grantType, tokenResponse } from "~/types/serviceAuthData";
-import { streamingServiceType } from "~/types/streamingServices";
 
 const serviceRegistrationMap: Record<
   streamingServiceType,
-  (grant_type: grantType, code: string) => Promise<tokenResponse>
+  (grant_type: grantType, code: string) => Promise<TokenResponse>
 > = { spotify: getSpotifyAccessToken, youtube: getYoutubeAccessToken };
 
 export async function GET({ request, params }: APIEvent) {
@@ -15,7 +15,7 @@ export async function GET({ request, params }: APIEvent) {
   const streamingService = params.service as streamingServiceType;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
-  const state = searchParams.get("state"); //NEED TO IMPLEMENT STATE CHECK
+  // const state = searchParams.get("state"); //NEED TO IMPLEMENT STATE CHECK
   if (error) {
     return new Response("Access denied", { status: 400 });
   }

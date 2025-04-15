@@ -1,24 +1,24 @@
 "use server";
 
 import {
-  YoutubeDataResponse,
-  YoutubePlaylist,
-  YoutubeResourceId,
-  YoutubeSearchResult,
-  YoutubeTrack,
-} from "~/types/youtubeData";
-import { getStreamingServiceAccessTokenFromDB } from "./accessTokenHelpers";
-import { grantType, tokenResponse } from "~/types/serviceAuthData";
-import { streamingServiceType } from "~/types/streamingServices";
-import {
-  youtubePlaylistsToBeathopData,
-  youtubeSearchResultToBeatHopData,
-  youtubeTracksToBeatHopData,
-} from "./toBeatHopStructure";
-import {
   beatHopDataResponse,
   beatHopTrackType,
-} from "~/types/beatHopStructure";
+} from "@/types/beatHopStructure";
+import { grantType, TokenResponse } from "@/types/serviceAuthData";
+import { streamingServiceType } from "@/types/streamingServices";
+import {
+  YoutubeDataResponse,
+  YoutubePlaylist,
+  YoutubeTrack,
+  YoutubeSearchResult,
+  YoutubeResourceId,
+} from "@/types/youtubeData";
+import { getStreamingServiceAccessTokenFromDB } from "../accessTokenHelpers";
+import {
+  youtubePlaylistsToBeathopData,
+  youtubeTracksToBeatHopData,
+  youtubeSearchResultToBeatHopData,
+} from "../toBeatHopStructure";
 
 const service: streamingServiceType = "youtube";
 
@@ -49,7 +49,7 @@ export async function getYoutubeAccessToken(
   });
   const response = await tokenResponse.json();
   response.expores_in = response.refresh_token_expires_in;
-  return response as tokenResponse;
+  return response as TokenResponse;
 }
 
 async function youtubeFetch(
@@ -114,10 +114,13 @@ export async function createYoutubePlaylist(
 }
 
 export async function searchYoutubeForTrack(
-  name: string
+  name: string,
+  artist: string
 ): Promise<beatHopDataResponse<beatHopTrackType>> {
   const searchResult = (await (
-    await youtubeFetch(`search?part=snippet&q=${name}&type=video&maxResults=5`)
+    await youtubeFetch(
+      `search?part=snippet&q=${name} ${artist}&type=video&maxResults=5`
+    )
   ).json()) as YoutubeDataResponse<YoutubeSearchResult>;
   // console.log(searchResult);
   return await youtubeSearchResultToBeatHopData(searchResult);
@@ -146,7 +149,7 @@ export async function addBulkToYoutubePlaylist(
   playlistTracks: beatHopDataResponse<beatHopTrackType>
 ) {
   const youtubeSearchPromiseList = playlistTracks.items.map((track) => {
-    return searchYoutubeForTrack(`${track.name} ${track.artists.join(" ")}`);
+    return searchYoutubeForTrack(`${track.name}`, `${track.artists.join(" ")}`);
   });
   const youtubeTracks = await Promise.all(youtubeSearchPromiseList);
   for (const track of youtubeTracks) {

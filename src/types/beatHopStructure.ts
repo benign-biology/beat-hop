@@ -5,6 +5,7 @@ export type beatHopDataResponse<T> = {
   prev: string;
   next: string;
   items: [T];
+  name?: string;
 };
 
 export type beatHopPlaylistType = {
@@ -22,6 +23,7 @@ export type beatHopTrackType = {
   artists: [string];
   album: string;
   id: string;
-  resourceId?: YoutubeResourceId;
+  resourceId?: YoutubeResourceId; // for youtube
+  uri?: string; // for spotify
   service?: streamingServiceType;
 };

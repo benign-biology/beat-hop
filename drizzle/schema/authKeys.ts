@@ -4,12 +4,15 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { Users } from "./user";
 
 export const AuthKeys = sqliteTable(
   "auth-keys",
   {
     id: integer("id").primaryKey().unique().notNull(),
-    username: text("username").notNull(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => Users.id, { onDelete: "cascade" }),
     authCode: text("auth_code").notNull().default(""),
     refreshCode: text("refresh_code").notNull().default(""),
     expiresIn: integer("expires_in").notNull().default(0),
@@ -17,7 +20,7 @@ export const AuthKeys = sqliteTable(
   },
   (table) => [
     uniqueIndex("user_streaming_unique").on(
-      table.username,
+      table.userId,
       table.streamingService
     ),
   ]

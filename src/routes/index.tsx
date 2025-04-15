@@ -1,15 +1,15 @@
+import { getUser, logout } from "@/api";
+import { getRegisteredServices } from "@/api/streamingServiceHelpers/streamingServices";
 import {
-  createAsync,
-  useNavigate,
-  type RouteDefinition,
-} from "@solidjs/router";
-import { For, Show } from "solid-js";
-import { getUser, logout } from "~/api";
-import { getRegisteredServices } from "~/api/streamingServiceHelpers/streamingServices";
+  authenticateWithSpotify,
+  authenticateWithYoutube,
+} from "@/api/streamingServiceHelpers/userAuthentication";
 import {
-  streamingServices,
   streamingServiceType,
-} from "~/types/streamingServices";
+  streamingServices,
+} from "@/types/streamingServices";
+import { RouteDefinition, createAsync, useNavigate } from "@solidjs/router";
+import { For, Show } from "solid-js";
 
 export const route = {
   preload() {
@@ -17,32 +17,6 @@ export const route = {
     getRegisteredServices();
   },
 } satisfies RouteDefinition;
-
-function authenticateWithSpotify() {
-  window.open(
-    `${
-      import.meta.env.VITE_SPOTIFY_USER_AUTH_ENDPOINT
-    }response_type=code&client_id=${
-      import.meta.env.VITE_SPOTIFY_CLIENT_ID
-    }&scope=playlist-read-private playlist-read-collaborative&redirect_uri=${
-      import.meta.env.VITE_SPOTIFY_REDIRECT_URL
-    }&show_dialog=true`,
-    "_blank"
-  );
-}
-function authenticateWithYoutube() {
-  window.open(
-    `${
-      import.meta.env.VITE_YOUTUBE_USER_AUTH_ENDPOINT
-    }response_type=code&client_id=${
-      import.meta.env.VITE_YOUTUBE_CLIENT_ID
-    }&scope=https://www.googleapis.com/auth/youtube
-    &redirect_uri=${
-      import.meta.env.VITE_YOUTUBE_REDIRECT_URL
-    }&access_type=offline`,
-    "_blank"
-  );
-}
 
 const serviceAuthenticationMap: Record<streamingServiceType, Function> = {
   spotify: authenticateWithSpotify,

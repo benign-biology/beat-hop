@@ -1,17 +1,24 @@
 "use server";
 
+import { grantType, TokenResponse } from "@/types/serviceAuthData";
 import {
   SpotifyDataResponse,
   SpotifyPlaylist,
+  SpotifySearchResult,
   SpotifyTrack,
-} from "~/types/spotifyData";
-import { getStreamingServiceAccessTokenFromDB } from "./accessTokenHelpers";
-import { grantType, tokenResponse } from "~/types/serviceAuthData";
-import { streamingServiceType } from "~/types/streamingServices";
+  SpotifyUser,
+} from "@/types/spotifyData";
+import { streamingServiceType } from "@/types/streamingServices";
+import { getStreamingServiceAccessTokenFromDB } from "../accessTokenHelpers";
 import {
   spotifyPlaylistsToBeathopData,
+  spotifySearchResultToBeatHopData,
   spotifyTracksToBeatHopData,
-} from "./toBeatHopStructure";
+} from "../toBeatHopStructure";
+import {
+  beatHopDataResponse,
+  beatHopTrackType,
+} from "@/types/beatHopStructure";
 
 const service: streamingServiceType = "spotify";
 
@@ -41,13 +48,13 @@ export async function getSpotifyAccessToken(
         : { grant_type, refresh_token: code }
     ),
   });
-  return (await tokenResponse.json()) as tokenResponse;
+  return (await tokenResponse.json()) as TokenResponse;
 }
 
 async function spotifyFetch(
   path: string,
   method: "GET" | "POST" = "GET",
-  body?: [string, string][],
+  body?: Object,
   fullUrl: boolean = false
 ) {
   const accessToken = await getStreamingServiceAccessTokenFromDB(
@@ -60,7 +67,7 @@ async function spotifyFetch(
       Authorization: "Bearer " + accessToken!.authCode,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    ...(body ? { body: new URLSearchParams(body) } : {}),
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
 }
 
@@ -112,4 +119,68 @@ export async function getAllSpotifyPlaylistTracks(playlistId: string) {
   };
   const data = spotifyTracksToBeatHopData(concatenatedTracks);
   return data;
+}
+
+export async function getSpotifyUser(): Promise<SpotifyUser> {
+  const getUserResponse = await spotifyFetch(`me`, "GET");
+  return await getUserResponse.json();
+}
+
+export async function createSpotifyPlaylist(
+  playlistName: string,
+  spotifyUserId: string
+): Promise<SpotifyPlaylist> {
+  const createdPlaylistResponse = await spotifyFetch(
+    `users/${spotifyUserId}/playlists`,
+    "POST",
+    {
+      name: playlistName,
+      description: "Added by BeatHop",
+    }
+  );
+  return await createdPlaylistResponse.json();
+}
+
+export async function searchSpotifyForTrack(
+  name: string,
+  artist: string
+): Promise<beatHopDataResponse<beatHopTrackType>> {
+  const searchResult = (await (
+    await spotifyFetch(`search?q=track:${name} artist:${artist}&type="track"=5`)
+  ).json()) as SpotifySearchResult;
+  // console.log(searchResult);
+  return await spotifySearchResultToBeatHopData(searchResult);
+}
+
+export async function addToSpotifyPlaylist(playlistId: string, uris: string[]) {
+  const res = await (
+    await spotifyFetch(`playlists/${playlistId}/tracks`, "POST", {
+      uris,
+    })
+  ).json();
+  if (res.error) {
+    console.log(JSON.stringify(res));
+  }
+  return res;
+}
+
+export async function addBulkToSpotifyPlaylist(
+  playlistId: string,
+  playlistTracks: beatHopDataResponse<beatHopTrackType>
+) {
+  const spotifySearchPromiseList = playlistTracks.items.map((track) => {
+    return searchSpotifyForTrack(`${track.name}`, `${track.artists.join(" ")}`);
+  });
+  const spotifyTracks = await Promise.all(spotifySearchPromiseList);
+  const chunkSize = 100;
+  const spotifyTracksChunks = Array.from({
+    length: Math.ceil(spotifyTracks.length / chunkSize),
+  }).map((_, chunkIndex) => {
+    return spotifyTracks
+      .slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize)
+      .map((item, index) => item.items?.[0]?.uri ?? "");
+  });
+  for (const tracksChunk of spotifyTracksChunks) {
+    await addToSpotifyPlaylist(playlistId, tracksChunk);
+  }
 }
