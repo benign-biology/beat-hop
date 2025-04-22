@@ -19,6 +19,10 @@ import {
   youtubeTracksToBeatHopData,
   youtubeSearchResultToBeatHopData,
 } from "../toBeatHopStructure";
+import {
+  saveTransferState,
+  updateTransferState,
+} from "../transferTrackingHelper";
 
 const service: streamingServiceType = "youtube";
 
@@ -195,14 +199,21 @@ export async function addToYoutubePlaylist(
 
 export async function addBulkToYoutubePlaylist(
   playlistId: string,
-  playlistTracks: beatHopDataResponse<beatHopTrackType>
+  playlistTracks: beatHopDataResponse<beatHopTrackType>,
+  transferId: string
 ) {
   const youtubeSearchPromiseList = playlistTracks.items.map((track) => {
     return searchYoutubeForTrack(`${track.name}`, `${track.artists.join(" ")}`);
   });
   const youtubeTracks = await Promise.all(youtubeSearchPromiseList);
-  for (const track of youtubeTracks) {
-    await addToYoutubePlaylist(playlistId, track.items[0].resourceId!);
+  for (const [index, track] of youtubeTracks.entries()) {
+    const res = await addToYoutubePlaylist(
+      playlistId,
+      track.items[0].resourceId!
+    );
+    console.log(res);
+    playlistTracks.items[index].transferStatus = "complete";
+    await updateTransferState(transferId, playlistTracks);
   }
 
   // FOR WHEN YOUTUBE LETS HIT ALL AT ONCE (not supported for now)
@@ -215,10 +226,16 @@ export async function addBulkToYoutubePlaylist(
 
 export async function createPlaylistAndTransferSongsToYoutube(
   playlistNmae: string,
-  playlistTracks: beatHopDataResponse<beatHopTrackType>
+  playlistTracks: beatHopDataResponse<beatHopTrackType>,
+  fromStreamingService: streamingServiceType
 ) {
-  addBulkToYoutubePlaylist(
-    (await createYoutubePlaylist(playlistNmae)).id,
-    playlistTracks
+  const createdPlaylist = await createYoutubePlaylist(playlistNmae);
+  const transferId = await saveTransferState(
+    playlistTracks,
+    createdPlaylist.id,
+    fromStreamingService,
+    "youtube"
   );
+  addBulkToYoutubePlaylist(createdPlaylist.id, playlistTracks, transferId);
+  return transferId;
 }

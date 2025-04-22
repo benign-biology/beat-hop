@@ -7,9 +7,12 @@ import {
 import { Users } from "./user";
 
 export const Transfers = sqliteTable("transfers", {
-  id: integer("id").primaryKey().unique().notNull(),
+  id: text("id").primaryKey().notNull(),
   userId: integer("user_id")
     .notNull()
     .references(() => Users.id, { onDelete: "cascade" }),
-  transferItems: text("transferItems", { mode: "json" }).notNull(),
+  transferItems: text("transfer_items", { mode: "json" }).notNull(),
+  createdPlaylistId: text("created_playlist_id").notNull(),
+  fromStreamingService: text("from_streaming_service").notNull().default(""),
+  toStreamingService: text("to_streaming_service").notNull().default(""),
 });

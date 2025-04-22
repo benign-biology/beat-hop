@@ -27,6 +27,7 @@ export function spotifyPlaylistsToBeathopData(
         image: playlist.images?.[0]?.url ?? "",
         name: playlist.name,
         id: playlist.id,
+        total: playlist.tracks.total,
       };
     }) as [beatHopPlaylistType],
     prev: spotifyPlaylists.previous,
@@ -48,6 +49,7 @@ export function spotifyTracksToBeatHopData(
         artists: item.track.artists.map((artist) => {
           return artist.name;
         }),
+        transferStatus: "not-started",
       };
     }) as [beatHopTrackType],
     prev: spotifyTracks.previous ?? "",
@@ -70,6 +72,7 @@ export function youtubePlaylistsToBeathopData(
         image: playlist.snippet.thumbnails.default.url,
         name: playlist.snippet.title,
         id: playlist.id,
+        total: playlist.contentDetails.itemCount,
       };
     }) as [beatHopPlaylistType],
     prev: youtubePlaylists.prevPageToken,
@@ -90,6 +93,7 @@ export function youtubeTracksToBeatHopData(
         // artists: item.track.artists.map((artist) => {
         //   return artist.name;
         // }),
+        transferStatus: "not-started",
       };
     }) as [beatHopTrackType],
     prev: youtubeTracks.prevPageToken,

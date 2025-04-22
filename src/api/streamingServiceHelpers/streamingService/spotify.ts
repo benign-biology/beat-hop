@@ -19,6 +19,7 @@ import {
   beatHopDataResponse,
   beatHopTrackType,
 } from "@/types/beatHopStructure";
+import { saveTransferState } from "../transferTrackingHelper";
 
 const service: streamingServiceType = "spotify";
 
@@ -187,10 +188,21 @@ export async function addBulkToSpotifyPlaylist(
 
 export async function createPlaylistAndTransferSongsToSpotify(
   playlistNmae: string,
-  playlistTracks: beatHopDataResponse<beatHopTrackType>
+  playlistTracks: beatHopDataResponse<beatHopTrackType>,
+  fromStreamingService: streamingServiceType
 ) {
-  addBulkToSpotifyPlaylist(
-    (await createSpotifyPlaylist(playlistNmae, (await getSpotifyUser()).id)).id,
-    playlistTracks
+  const createdPlaylist = await createSpotifyPlaylist(
+    playlistNmae,
+    (
+      await getSpotifyUser()
+    ).id
   );
+  const transferId = await saveTransferState(
+    playlistTracks,
+    createdPlaylist.id,
+    fromStreamingService,
+    "spotify"
+  );
+  await addBulkToSpotifyPlaylist(createdPlaylist.id, playlistTracks);
+  return transferId;
 }

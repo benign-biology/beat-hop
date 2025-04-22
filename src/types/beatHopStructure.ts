@@ -4,7 +4,7 @@ import { YoutubeResourceId } from "./youtubeData";
 export type beatHopDataResponse<T> = {
   prev: string;
   next: string;
-  items: [T];
+  items: Array<T>;
   name?: string;
 };
 
@@ -15,6 +15,7 @@ export type beatHopPlaylistType = {
   album?: string;
   service?: streamingServiceType;
   tracks?: [beatHopTrackType];
+  total: number;
 };
 
 export type beatHopTrackType = {
@@ -26,4 +27,5 @@ export type beatHopTrackType = {
   resourceId?: YoutubeResourceId; // for youtube
   uri?: string; // for spotify
   service?: streamingServiceType;
+  transferStatus?: "not-started" | "in-progress" | "complete";
 };
