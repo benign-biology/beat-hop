@@ -33,13 +33,11 @@ export default function Transfer() {
     );
 
     eventSource.onmessage = (event) => {
-      console.log(event.data);
       const msg = JSON.parse(event.data);
       setData(msg);
     };
 
     eventSource.onerror = () => {
-      console.error("Connection error");
       eventSource.close();
     };
 
@@ -65,7 +63,7 @@ export default function Transfer() {
             when={data()}
             fallback={
               <TableRow>
-                <TableCell class="h-24 text-center">No results.</TableCell>
+                <TableCell class="h-24 text-center">Loading.</TableCell>
               </TableRow>
             }
           >

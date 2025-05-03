@@ -8,7 +8,8 @@ import { streamingServiceType } from "@/types/streamingServices";
 import { Transfers } from "../../../drizzle/schema/transfers";
 import { db } from "../db";
 import { getUser } from "..";
-import { eq, and } from "drizzle-orm";
+import { eq, and, UpdateSet } from "drizzle-orm";
+import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 
 export async function addToTransferList(
   fromStreamingService: streamingServiceType,
@@ -42,7 +43,10 @@ export async function updateTransferStateItems(
     .where(and(eq(Transfers.id, transferId), eq(Transfers.userId, user.id)));
 }
 
-export async function updateTransferStateMeta(transferId: string, meta: {}) {
+export async function updateTransferStateMeta(
+  transferId: string,
+  meta: PgUpdateSetSource<typeof Transfers>
+) {
   const user = await getUser();
   return await db
     .update(Transfers)

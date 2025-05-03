@@ -16,14 +16,8 @@ import {
 import {
   getFromTransferList,
   updateTransferStateItems,
+  updateTransferStateMeta,
 } from "./transferTrackingHelper";
-
-type PortFunction = (
-  playlistName: string,
-  playlistTracks: beatHopDataResponse<beatHopTrackType>,
-  transferId: string,
-  signal: AbortSignal
-) => Promise<string>;
 
 const portToPlaylistMap: Record<
   streamingServiceType,
@@ -57,7 +51,6 @@ async function portPlaylistToService(
   update: (update: string) => void,
   continueFrom: number
 ) {
-  console.log("porting started");
   return await portToPlaylistMap[toStreamingService](
     playlistName,
     tracks,
@@ -72,7 +65,6 @@ export async function getAllConvertedPlaylistTracks(
   service: streamingServiceType,
   playlistId: string
 ) {
-  console.log(service, playlistId);
   return await getServicePlaylistAllTracks[service](playlistId);
 }
 
@@ -85,8 +77,6 @@ export async function portToService(
   update: (update: any) => void,
   signal: AbortSignal
 ) {
-  console.log("port");
-
   let shouldStop = false;
   let canForceStop = true;
 
@@ -98,7 +88,6 @@ export async function portToService(
 
   // Load persisted state (if any)
   const persisted = await getFromTransferList(transferId);
-  console.log(typeof persisted[0]?.transferItems);
   const persistedState = persisted[0]?.transferItems;
 
   let continueFrom = 0;
@@ -118,6 +107,15 @@ export async function portToService(
   }
   update(playlistTracks);
 
+  if (continueFrom == -1) {
+    await updateTransferStateMeta(transferId, { transferStatus: "complete" });
+    return;
+  } else {
+    await updateTransferStateMeta(transferId, {
+      transferStatus: "in-progress",
+    });
+  }
+
   canForceStop = false;
 
   // Begin transfer
@@ -130,6 +128,7 @@ export async function portToService(
     update,
     continueFrom
   );
+  await updateTransferStateMeta(transferId, { transferStatus: "complete" });
 }
 
 function getTransferContinueFromIndex(

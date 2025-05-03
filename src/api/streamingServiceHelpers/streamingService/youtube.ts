@@ -63,24 +63,31 @@ async function youtubeFetch(
     getYoutubeAccessToken,
     service
   );
-  return fetch(fullUrl ? path : process.env.YOUTUBE_API_ENDPOINT + path, {
-    method,
-    headers: {
-      Authorization: "Bearer " + accessToken!.authCode,
-      Accept: "application/json",
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  const res = await fetch(
+    fullUrl ? path : process.env.YOUTUBE_API_ENDPOINT + path,
+    {
+      method,
+      headers: {
+        Authorization: "Bearer " + accessToken!.authCode,
+        Accept: "application/json",
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }
+  );
+  const resJson = await res.json();
+  if (res.status != 200) {
+    console.log(resJson);
+    throw new Error("error");
+  }
+  return resJson;
 }
 
 export async function getYoutubeCurrentUserPlaylists(): Promise<
   YoutubeDataResponse<YoutubePlaylist>
 > {
-  const playlistResponse = await youtubeFetch(
+  return await youtubeFetch(
     "playlists?part=snippet,contentDetails&maxResults=25&mine=true"
   );
-  const playlists = await playlistResponse.json();
-  return playlists;
 }
 
 export async function getYoutubePlaylistTracks(
@@ -88,10 +95,9 @@ export async function getYoutubePlaylistTracks(
   token?: string
 ): Promise<YoutubeDataResponse<YoutubeTrack>> {
   const pageToken = token ? `&pageToken=${token}` : "";
-  const playlistTracksResponse = await youtubeFetch(
+  return await youtubeFetch(
     `playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=${itemLength}${pageToken}`
   );
-  return await playlistTracksResponse.json();
 }
 
 export async function getConvertedYoutubeCurrentUserPlaylists() {
@@ -153,25 +159,18 @@ export async function getYoutubePlaylistAllTracks(playlistId: string) {
 export async function createYoutubePlaylist(
   playlistName: string
 ): Promise<YoutubePlaylist> {
-  const createdPlaylistResponse = await youtubeFetch(
-    `playlists?part=snippet,contentDetails`,
-    "POST",
-    {
-      snippet: { title: playlistName },
-    }
-  );
-  return await createdPlaylistResponse.json();
+  return await youtubeFetch(`playlists?part=snippet,contentDetails`, "POST", {
+    snippet: { title: playlistName },
+  });
 }
 
 export async function searchYoutubeForTrack(
   name: string,
   artist: string
 ): Promise<beatHopDataResponse<beatHopTrackType>> {
-  const searchResult = (await (
-    await youtubeFetch(
-      `search?part=snippet&q=${name} ${artist}&type=video&maxResults=5`
-    )
-  ).json()) as YoutubeDataResponse<YoutubeSearchResult>;
+  const searchResult = (await youtubeFetch(
+    `search?part=snippet&q=${name} ${artist}&type=video&maxResults=5`
+  )) as YoutubeDataResponse<YoutubeSearchResult>;
   // console.log(searchResult);
   return await youtubeSearchResultToBeatHopData(searchResult);
 }
@@ -180,14 +179,12 @@ export async function addToYoutubePlaylist(
   playlistId: string,
   resourceId: YoutubeResourceId
 ) {
-  const res = await (
-    await youtubeFetch(`playlistItems?part=snippet`, "POST", {
-      snippet: {
-        playlistId,
-        resourceId,
-      },
-    })
-  ).json();
+  const res = await youtubeFetch(`playlistItems?part=snippet`, "POST", {
+    snippet: {
+      playlistId,
+      resourceId,
+    },
+  });
   if (res.error) {
     console.log(JSON.stringify(res));
   }

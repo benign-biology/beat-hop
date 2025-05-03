@@ -12,11 +12,16 @@ import {
   beatHopDataResponse,
   beatHopPlaylistType,
 } from "@/types/beatHopStructure";
-import { streamingServiceType } from "@/types/streamingServices";
+import {
+  isStreamingServiceType,
+  streamingServices,
+  streamingServiceType,
+} from "@/types/streamingServices";
 import {
   A,
   AccessorWithLatest,
   createAsync,
+  redirect,
   useNavigate,
   useParams,
 } from "@solidjs/router";
@@ -30,6 +35,7 @@ import {
   Table,
 } from "@/components/ui/table";
 import { addToTransferList } from "@/api/streamingServiceHelpers/transferTrackingHelper";
+import { Button } from "@kobalte/core/button";
 
 export const route = {
   preload() {
@@ -54,77 +60,122 @@ export default function Playlists() {
   const playlists = createAsync(async () => getPlaylists(params.service));
   const navigate = useNavigate();
 
+  if (!isStreamingServiceType(params.service)) {
+    redirect("/");
+  }
+
+  const getPortToServices = streamingServices.filter(
+    (service) => service === params.service
+  );
+
   // const [showStatusBar, setShowStatusBar] = createSignal<boolean>(true);
   // const [showActivityBar, setShowActivityBar] = createSignal<boolean>(false);
   // const [showPanel, setShowPanel] = createSignal<boolean>(false);
+  const playlistTable = (
+    playlists: AccessorWithLatest<
+      beatHopDataResponse<beatHopPlaylistType> | undefined
+    >
+  ) => {
+    const headers = ["name", "", "no of tracks"];
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <For each={headers}>
+              {(header) => <TableHead>{header}</TableHead>}
+            </For>
+            {/* <For each={headerGroup.headers}>
+                {(header) => {
+                  return (
+                    <TableHead>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                }}
+              </For> */}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <Show
+            when={playlists()}
+            fallback={
+              <TableRow>
+                <TableCell
+                  // colSpan={local.columns.length}
+                  class="h-24 text-center"
+                >
+                  No results.
+                </TableCell>
+              </TableRow>
+            }
+          >
+            <For each={playlists()?.items}>
+              {(playlist) => (
+                <TableRow>
+                  <TableCell>
+                    {" "}
+                    <A href={`/${params.service}/playlist/${playlist.id}`}>
+                      {playlist.name}
+                    </A>
+                  </TableCell>
+                  <TableCell>
+                    {" "}
+                    <DropdownMenu placement="bottom">
+                      <DropdownMenuTrigger
+                        as={(props: DropdownMenuSubTriggerProps) => (
+                          <Button {...props}>Transfer</Button>
+                        )}
+                      />
+                      <DropdownMenuContent class="w-56">
+                        <For each={getPortToServices}>
+                          {(service) => (
+                            <DropdownMenuItem>
+                              <i class="i-lucide:user mr-2" />
+                              <span
+                                onClick={async () => {
+                                  navigate(
+                                    `/transfer/${
+                                      (
+                                        await addToTransferList(
+                                          params.service as streamingServiceType,
+                                          playlist.id,
+                                          service,
+                                          playlist.name
+                                        )
+                                      )[0].id
+                                    }`,
+                                    { replace: false }
+                                  );
+                                }}
+                              >
+                                {service}
+                              </span>
+                              {/* <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut> */}
+                            </DropdownMenuItem>
+                          )}
+                        </For>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                  <TableCell>{playlist.total}</TableCell>
+                </TableRow>
+              )}
+            </For>
+          </Show>
+        </TableBody>
+      </Table>
+    );
+  };
+
   return (
     <main class="w-full p-4 space-y-2">
       <h1>Service{params.service}</h1>
       {playlistTable(playlists)}
-      <For each={playlists()?.items}>
-        {(playlist) => (
-          <div>
-            {" "}
-            <A href={`/${params.service}/playlist/${playlist.id}`}>
-              {playlist.name}
-            </A>
-            <DropdownMenu placement="bottom">
-              <DropdownMenuTrigger
-                as={(props: DropdownMenuSubTriggerProps) => (
-                  <button>Open</button>
-                )}
-              />
-              <DropdownMenuContent class="w-56">
-                <DropdownMenuItem>
-                  <i class="i-lucide:user mr-2" />
-                  <span>Profile</span>
-                  <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <i class="i-lucide:credit-card mr-2" />
-                  <span>Billing</span>
-                  <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <i class="i-lucide:settings mr-2" />
-                  <span>Settings</span>
-                  <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Show when={params.service == "spotify"}>
-              <button
-                onClick={async () => {
-                  navigate(
-                    `/transfer/${
-                      (
-                        await addToTransferList(
-                          "spotify",
-                          playlist.id,
-                          "youtube",
-                          playlist.name
-                        )
-                      )[0].id
-                    }`,
-                    { replace: false }
-                  );
-                  // navigate(
-                  //   `/transfer/${await portToService(
-                  //     playlist.name,
-                  //     playlist.id,
-                  //     "spotify",
-                  //     "youtube"
-                  //   )}`,
-                  //   { replace: false }
-                  // );
-                }}
-              >
-                Port to Youtube
-              </button>
-            </Show>
-          </div>
-        )}
-      </For>{" "}
     </main>
   );
 }
@@ -143,58 +194,3 @@ export default function Playlists() {
 //     header: "Status",
 //   },
 // ];
-
-const playlistTable = (
-  data: AccessorWithLatest<beatHopDataResponse<beatHopPlaylistType> | undefined>
-) => {
-  const headers = ["name", "no of tracks"];
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <For each={headers}>
-            {(header) => <TableHead>{header}</TableHead>}
-          </For>
-          {/* <For each={headerGroup.headers}>
-              {(header) => {
-                return (
-                  <TableHead>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              }}
-            </For> */}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <Show
-          when={data()}
-          fallback={
-            <TableRow>
-              <TableCell
-                // colSpan={local.columns.length}
-                class="h-24 text-center"
-              >
-                No results.
-              </TableCell>
-            </TableRow>
-          }
-        >
-          <For each={data()?.items}>
-            {(row) => (
-              <TableRow>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.total}</TableCell>
-              </TableRow>
-            )}
-          </For>
-        </Show>
-      </TableBody>
-    </Table>
-  );
-};
