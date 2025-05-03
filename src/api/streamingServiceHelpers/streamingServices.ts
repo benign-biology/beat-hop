@@ -1,9 +1,9 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { getUser } from "..";
 import { AuthKeys } from "../../../drizzle/schema/authKeys";
 import { db } from "../db";
+import { getUser } from "../server";
 
 export async function getRegisteredServices() {
   const user = await getUser();

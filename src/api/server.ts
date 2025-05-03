@@ -18,23 +18,21 @@ function validatePassword(password: unknown) {
 }
 
 async function login(username: string, password: string) {
-  const user = db
+  const [user] = await db
     .select()
     .from(Users)
-    .where(eq(Users.username, username))
-    .get();
+    .where(eq(Users.username, username));
   if (!user || password !== user.password) throw new Error("Invalid login");
   return user;
 }
 
 async function register(username: string, password: string) {
-  const existingUser = db
+  const [existingUser] = await db
     .select()
     .from(Users)
-    .where(eq(Users.username, username))
-    .get();
+    .where(eq(Users.username, username));
   if (existingUser) throw new Error("User already exists");
-  return db.insert(Users).values({ username, password }).returning().get();
+  return (await db.insert(Users).values({ username, password }).returning())[0];
 }
 
 function getSession() {
@@ -80,7 +78,7 @@ export async function getUser() {
   if (userId === undefined) throw redirect("/login");
 
   try {
-    const user = db.select().from(Users).where(eq(Users.id, userId)).get();
+    const [user] = await db.select().from(Users).where(eq(Users.id, userId));
     if (!user) throw redirect("/login");
     return { id: user.id, username: user.username };
   } catch {

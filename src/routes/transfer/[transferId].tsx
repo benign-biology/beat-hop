@@ -1,4 +1,4 @@
-import { getTransferState } from "@/api/streamingServiceHelpers/transferTrackingHelper";
+import { pushToClient } from "@/api/streamingServiceHelpers/sse";
 import {
   Table,
   TableBody,
@@ -15,6 +15,11 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 //     (transferId: string) => getTransferState(transferId);
 //   },
 // };
+
+function test(transferId: string) {
+  "use server";
+  pushToClient(transferId, "weeee");
+}
 
 export default function Transfer() {
   const params = useParams();
@@ -46,6 +51,7 @@ export default function Transfer() {
   const headers = ["name", "artists", "status"];
   return (
     <div>
+      <button onClick={() => test(params.transferId)}>push event</button>
       <Table>
         <TableHeader>
           <TableRow>

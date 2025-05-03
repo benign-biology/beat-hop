@@ -1,5 +1,5 @@
 import { getUser, logout } from "@/api";
-import { getRegisteredServices } from "@/api/streamingServiceHelpers/streamingServices";
+import { getRegisteredServices } from "@/api/streamingServiceHelpers";
 import {
   authenticateWithSpotify,
   authenticateWithYoutube,

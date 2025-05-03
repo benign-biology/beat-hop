@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { getCurrentTime } from "../time";
 import { grantType, TokenResponse } from "@/types/serviceAuthData";
 import { streamingServiceType } from "@/types/streamingServices";
+import { redirect } from "@solidjs/router";
 
 export async function SaveUserAccessToken(
   tokenResponse: TokenResponse,
@@ -67,12 +68,17 @@ export async function getStreamingServiceAccessTokenFromDB(
         )
       )
   )[0];
+  if (!token) throw redirect("/");
   const now = getCurrentTime();
   if (token.expiresIn < now) {
     const newToken = await getAccessTokenCallback(
       "refresh_token",
       token!.refreshCode
     );
+    if (newToken.error) {
+      await clearUserAccessToken(streamingService);
+      throw redirect("/");
+    }
     await SaveUserAccessToken(newToken, streamingService);
     token.expiresIn = newToken.expires_in;
     token.authCode = newToken.access_token;

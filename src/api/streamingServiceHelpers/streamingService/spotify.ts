@@ -19,7 +19,10 @@ import {
   beatHopDataResponse,
   beatHopTrackType,
 } from "@/types/beatHopStructure";
-import { saveTransferState } from "../transferTrackingHelper";
+import {
+  updateTransferStateItems,
+  updateTransferStateMeta,
+} from "../transferTrackingHelper";
 
 const service: streamingServiceType = "spotify";
 
@@ -167,12 +170,27 @@ export async function addToSpotifyPlaylist(playlistId: string, uris: string[]) {
 
 export async function addBulkToSpotifyPlaylist(
   playlistId: string,
-  playlistTracks: beatHopDataResponse<beatHopTrackType>
+  playlistTracks: beatHopDataResponse<beatHopTrackType>,
+  transferId: string,
+  signal: AbortSignal,
+  update: (update: any) => void,
+  continueFrom: number = 0
 ) {
-  const spotifySearchPromiseList = playlistTracks.items.map((track) => {
+  let shouldStop = false;
+  let canForceStop = true;
+  signal.addEventListener("abort", () => {
+    shouldStop = true;
+    if (canForceStop) return;
+  });
+
+  const remainingTracks = playlistTracks.items.slice(continueFrom);
+
+  const spotifySearchPromiseList = remainingTracks.map((track) => {
     return searchSpotifyForTrack(`${track.name}`, `${track.artists.join(" ")}`);
   });
+
   const spotifyTracks = await Promise.all(spotifySearchPromiseList);
+
   const chunkSize = 100;
   const spotifyTracksChunks = Array.from({
     length: Math.ceil(spotifyTracks.length / chunkSize),
@@ -181,28 +199,55 @@ export async function addBulkToSpotifyPlaylist(
       .slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize)
       .map((item, index) => item.items?.[0]?.uri ?? "");
   });
-  for (const tracksChunk of spotifyTracksChunks) {
+  canForceStop = false;
+
+  for (const [chunkIndex, tracksChunk] of spotifyTracksChunks.entries()) {
+    const startIndex = continueFrom + chunkIndex * chunkSize;
+    const endIndex = startIndex + chunkSize;
+
     await addToSpotifyPlaylist(playlistId, tracksChunk);
+
+    playlistTracks.items.slice(startIndex, endIndex).forEach((item) => {
+      item.transferStatus = "complete";
+    });
+
+    await updateTransferStateItems(transferId, playlistTracks);
+
+    if (shouldStop) return;
+    else {
+      update(playlistTracks);
+    }
   }
 }
 
 export async function createPlaylistAndTransferSongsToSpotify(
   playlistNmae: string,
   playlistTracks: beatHopDataResponse<beatHopTrackType>,
-  fromStreamingService: streamingServiceType
+  transferId: string,
+  signal: AbortSignal,
+  update: (update: any) => void,
+  continueFrom: number = 0,
+  toPlaylistId?: string
 ) {
-  const createdPlaylist = await createSpotifyPlaylist(
-    playlistNmae,
-    (
-      await getSpotifyUser()
-    ).id
-  );
-  const transferId = await saveTransferState(
+  if (continueFrom > 0 || !toPlaylistId) {
+    toPlaylistId = (
+      await createSpotifyPlaylist(playlistNmae, (await getSpotifyUser()).id)
+    ).id;
+  }
+  // const transferId = await saveTransferState(
+  //   playlistTracks,
+  //   createdPlaylist.id,
+  //   fromStreamingService,
+  //   "spotify"
+  // );
+  await updateTransferStateMeta(transferId, toPlaylistId);
+  await addBulkToSpotifyPlaylist(
+    toPlaylistId,
     playlistTracks,
-    createdPlaylist.id,
-    fromStreamingService,
-    "spotify"
+    transferId,
+    signal,
+    update,
+    continueFrom
   );
-  await addBulkToSpotifyPlaylist(createdPlaylist.id, playlistTracks);
   return transferId;
 }

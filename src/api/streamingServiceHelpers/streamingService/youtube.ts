@@ -19,10 +19,7 @@ import {
   youtubeTracksToBeatHopData,
   youtubeSearchResultToBeatHopData,
 } from "../toBeatHopStructure";
-import {
-  saveTransferState,
-  updateTransferState,
-} from "../transferTrackingHelper";
+import { updateTransferStateItems } from "../transferTrackingHelper";
 
 const service: streamingServiceType = "youtube";
 
@@ -200,20 +197,36 @@ export async function addToYoutubePlaylist(
 export async function addBulkToYoutubePlaylist(
   playlistId: string,
   playlistTracks: beatHopDataResponse<beatHopTrackType>,
-  transferId: string
+  transferId: string,
+  signal: AbortSignal,
+  update: (update: any) => void,
+  continueFrom: number = 0
 ) {
-  const youtubeSearchPromiseList = playlistTracks.items.map((track) => {
+  let shouldStop = false;
+  let canForceStop = true;
+  signal.addEventListener("abort", () => {
+    shouldStop = true;
+    if (canForceStop) return;
+  });
+
+  // Only search for tracks that haven't been processed yet
+  const tracksToSearch = playlistTracks.items.slice(continueFrom);
+  const youtubeSearchPromiseList = tracksToSearch.map((track) => {
     return searchYoutubeForTrack(`${track.name}`, `${track.artists.join(" ")}`);
   });
+
   const youtubeTracks = await Promise.all(youtubeSearchPromiseList);
-  for (const [index, track] of youtubeTracks.entries()) {
-    const res = await addToYoutubePlaylist(
-      playlistId,
-      track.items[0].resourceId!
-    );
-    console.log(res);
+  canForceStop = false;
+
+  for (const [offset, track] of youtubeTracks.entries()) {
+    const index = continueFrom + offset;
+    await addToYoutubePlaylist(playlistId, track.items[0].resourceId!);
     playlistTracks.items[index].transferStatus = "complete";
-    await updateTransferState(transferId, playlistTracks);
+    await updateTransferStateItems(transferId, playlistTracks);
+    if (shouldStop) return;
+    else {
+      update(playlistTracks);
+    }
   }
 
   // FOR WHEN YOUTUBE LETS HIT ALL AT ONCE (not supported for now)
@@ -227,15 +240,28 @@ export async function addBulkToYoutubePlaylist(
 export async function createPlaylistAndTransferSongsToYoutube(
   playlistNmae: string,
   playlistTracks: beatHopDataResponse<beatHopTrackType>,
-  fromStreamingService: streamingServiceType
+  transferId: string,
+  signal: AbortSignal,
+  update: (update: any) => void,
+  continueFrom: number = 0,
+  toPlaylistId?: string
 ) {
-  const createdPlaylist = await createYoutubePlaylist(playlistNmae);
-  const transferId = await saveTransferState(
+  if (continueFrom > 0 || !toPlaylistId) {
+    toPlaylistId = (await createYoutubePlaylist(playlistNmae)).id;
+  }
+  // const transferId = await saveTransferState(
+  //   playlistTracks,
+  //   createdPlaylist.id,
+  //   fromStreamingService,
+  //   "youtube"
+  // );
+  addBulkToYoutubePlaylist(
+    toPlaylistId,
     playlistTracks,
-    createdPlaylist.id,
-    fromStreamingService,
-    "youtube"
+    transferId,
+    signal,
+    update,
+    continueFrom
   );
-  addBulkToYoutubePlaylist(createdPlaylist.id, playlistTracks, transferId);
   return transferId;
 }

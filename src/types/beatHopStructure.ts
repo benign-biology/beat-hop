@@ -27,5 +27,12 @@ export type beatHopTrackType = {
   resourceId?: YoutubeResourceId; // for youtube
   uri?: string; // for spotify
   service?: streamingServiceType;
-  transferStatus?: "not-started" | "in-progress" | "complete";
+  transferStatus?: transferStatusType;
 };
+
+export const transferStatuses = [
+  "not-started",
+  "in-progress",
+  "complete",
+] as const;
+export type transferStatusType = (typeof transferStatuses)[number];

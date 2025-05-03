@@ -1,9 +1,12 @@
-export default {
-  dialect: "sqlite",
+import "dotenv/config";
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  dialect: "postgresql",
   schema: "./drizzle/schema",
   out: "./drizzle/migrations/",
-  // driver: "better-sqlite",
   dbCredentials: {
-    url: './drizzle/db.sqlite',
+    // url: "./drizzle/db.sqlite",
+    url: process.env.DATABASE_URL!,
   },
-};
+});

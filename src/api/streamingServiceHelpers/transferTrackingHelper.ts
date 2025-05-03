@@ -4,48 +4,60 @@ import {
   beatHopDataResponse,
   beatHopTrackType,
 } from "@/types/beatHopStructure";
-import { getUser } from "..";
+import { streamingServiceType } from "@/types/streamingServices";
 import { Transfers } from "../../../drizzle/schema/transfers";
 import { db } from "../db";
-import { streamingServiceType } from "@/types/streamingServices";
-import { and, eq } from "drizzle-orm";
+import { getUser } from "..";
+import { eq, and } from "drizzle-orm";
 
-export async function saveTransferState(
-  playlistTracks: beatHopDataResponse<beatHopTrackType>,
-  createdPlaylistId: string,
+export async function addToTransferList(
   fromStreamingService: streamingServiceType,
-  toStreamingService: streamingServiceType
+  fromPlaylistId: string,
+  toStreamingService: streamingServiceType,
+  playlistName: string,
+  toPlaylistId: string | null = null
 ) {
   const user = await getUser();
-  const transferId = crypto.randomUUID();
-  await db.insert(Transfers).values({
-    id: transferId,
-    userId: user.id,
-    transferItems: playlistTracks,
-    createdPlaylistId,
-    fromStreamingService,
-    toStreamingService,
-  });
-  return transferId;
+  return await db
+    .insert(Transfers)
+    .values({
+      userId: user.id,
+      fromStreamingService,
+      toStreamingService,
+      fromPlaylistId,
+      toPlaylistId,
+      playlistName,
+    })
+    .returning();
 }
 
-export async function getTransferState(transfrId: string) {
-  const user = await getUser();
-  return (
-    await db
-      .select()
-      .from(Transfers)
-      .where(and(eq(Transfers.userId, user.id), eq(Transfers.id, transfrId)))
-  )[0].transferItems as string;
-}
-
-export async function updateTransferState(
+export async function updateTransferStateItems(
   transferId: string,
-  playlistTracks: beatHopDataResponse<beatHopTrackType>
+  transferItems: beatHopDataResponse<beatHopTrackType>
 ) {
   const user = await getUser();
   return await db
     .update(Transfers)
-    .set({ transferItems: playlistTracks })
-    .where(eq(Transfers.id, transferId));
+    .set({ transferItems: JSON.stringify(transferItems) })
+    .where(and(eq(Transfers.id, transferId), eq(Transfers.userId, user.id)));
+}
+
+export async function updateTransferStateMeta(transferId: string, meta: {}) {
+  const user = await getUser();
+  return await db
+    .update(Transfers)
+    .set(meta)
+    .where(and(eq(Transfers.id, transferId), eq(Transfers.userId, user.id)));
+}
+
+export async function getFromTransferList(transferId: string) {
+  const user = await getUser();
+  return await db
+    .select()
+    .from(Transfers)
+    .where(and(eq(Transfers.id, transferId), eq(Transfers.userId, user.id)));
+}
+
+export async function deleteFromTransferList(transferId: string) {
+  return await db.delete(Transfers).where(eq(Transfers.id, transferId));
 }

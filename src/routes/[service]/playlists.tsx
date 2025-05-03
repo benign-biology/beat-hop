@@ -1,14 +1,9 @@
-import {
-  getAllConvertedPlaylistTracks,
-  portPlaylistToService,
-} from "@/api/streamingServiceHelpers/portingHelpers";
 import { getConvertedSpotifyCurrentUserPlaylists } from "@/api/streamingServiceHelpers/streamingService/spotify";
 import { getConvertedYoutubeCurrentUserPlaylists } from "@/api/streamingServiceHelpers/streamingService/youtube";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
   DropdownMenuShortcut,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
@@ -16,14 +11,12 @@ import type { DropdownMenuSubTriggerProps } from "@kobalte/core/dropdown-menu";
 import {
   beatHopDataResponse,
   beatHopPlaylistType,
-  beatHopTrackType,
 } from "@/types/beatHopStructure";
 import { streamingServiceType } from "@/types/streamingServices";
 import {
   A,
   AccessorWithLatest,
   createAsync,
-  redirect,
   useNavigate,
   useParams,
 } from "@solidjs/router";
@@ -36,12 +29,7 @@ import {
   TableCell,
   Table,
 } from "@/components/ui/table";
-import {
-  ColumnDef,
-  createSolidTable,
-  flexRender,
-  getCoreRowModel,
-} from "@tanstack/solid-table";
+import { addToTransferList } from "@/api/streamingServiceHelpers/transferTrackingHelper";
 
 export const route = {
   preload() {
@@ -61,33 +49,14 @@ async function getPlaylists(service: string) {
   return getServicePlaylistsMap[service as streamingServiceType]();
 }
 
-async function portToService(
-  playlistName: string,
-  playlistId: string,
-  fromStreamingService: streamingServiceType,
-  toStreamingService: streamingServiceType
-) {
-  "use server";
-  const transferId = await portPlaylistToService(
-    getAllConvertedPlaylistTracks(fromStreamingService, playlistId),
-    playlistName,
-    fromStreamingService,
-    toStreamingService
-  );
-  return transferId;
-  // const newPlaylistId = await createYoutubePlaylist(playlistName);
-  // const playlistTracks = await getAllSpotifyPlaylistTracks(playlistId);
-  // await addBulkToYoutubePlaylist(newPlaylistId.id, playlistTracks);
-}
-
 export default function Playlists() {
   const params = useParams();
   const playlists = createAsync(async () => getPlaylists(params.service));
   const navigate = useNavigate();
 
-  const [showStatusBar, setShowStatusBar] = createSignal<boolean>(true);
-  const [showActivityBar, setShowActivityBar] = createSignal<boolean>(false);
-  const [showPanel, setShowPanel] = createSignal<boolean>(false);
+  // const [showStatusBar, setShowStatusBar] = createSignal<boolean>(true);
+  // const [showActivityBar, setShowActivityBar] = createSignal<boolean>(false);
+  // const [showPanel, setShowPanel] = createSignal<boolean>(false);
   return (
     <main class="w-full p-4 space-y-2">
       <h1>Service{params.service}</h1>
@@ -127,14 +96,27 @@ export default function Playlists() {
               <button
                 onClick={async () => {
                   navigate(
-                    `/transfer/${await portToService(
-                      playlist.name,
-                      playlist.id,
-                      "spotify",
-                      "youtube"
-                    )}`,
+                    `/transfer/${
+                      (
+                        await addToTransferList(
+                          "spotify",
+                          playlist.id,
+                          "youtube",
+                          playlist.name
+                        )
+                      )[0].id
+                    }`,
                     { replace: false }
                   );
+                  // navigate(
+                  //   `/transfer/${await portToService(
+                  //     playlist.name,
+                  //     playlist.id,
+                  //     "spotify",
+                  //     "youtube"
+                  //   )}`,
+                  //   { replace: false }
+                  // );
                 }}
               >
                 Port to Youtube

@@ -1,22 +1,18 @@
-import {
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { streamingServiceEnum } from "./transfers";
 import { Users } from "./user";
+import { integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-export const AuthKeys = sqliteTable(
+export const AuthKeys = pgTable(
   "auth-keys",
   {
-    id: integer("id").primaryKey().unique().notNull(),
-    userId: integer("user_id")
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
       .notNull()
       .references(() => Users.id, { onDelete: "cascade" }),
     authCode: text("auth_code").notNull().default(""),
     refreshCode: text("refresh_code").notNull().default(""),
     expiresIn: integer("expires_in").notNull().default(0),
-    streamingService: text("streaming_service").notNull().default(""),
+    streamingService: streamingServiceEnum("streaming_service").notNull(),
   },
   (table) => [
     uniqueIndex("user_streaming_unique").on(
