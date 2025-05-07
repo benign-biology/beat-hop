@@ -65,7 +65,7 @@ export default function Playlists() {
   }
 
   const getPortToServices = streamingServices.filter(
-    (service) => service === params.service
+    (service) => service !== params.service
   );
 
   // const [showStatusBar, setShowStatusBar] = createSignal<boolean>(true);
@@ -134,27 +134,25 @@ export default function Playlists() {
                       <DropdownMenuContent class="w-56">
                         <For each={getPortToServices}>
                           {(service) => (
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                navigate(
+                                  `/transfer/${
+                                    (
+                                      await addToTransferList(
+                                        params.service as streamingServiceType,
+                                        playlist.id,
+                                        service,
+                                        playlist.name
+                                      )
+                                    )[0].id
+                                  }`,
+                                  { replace: false }
+                                );
+                              }}
+                            >
                               <i class="i-lucide:user mr-2" />
-                              <span
-                                onClick={async () => {
-                                  navigate(
-                                    `/transfer/${
-                                      (
-                                        await addToTransferList(
-                                          params.service as streamingServiceType,
-                                          playlist.id,
-                                          service,
-                                          playlist.name
-                                        )
-                                      )[0].id
-                                    }`,
-                                    { replace: false }
-                                  );
-                                }}
-                              >
-                                {service}
-                              </span>
+                              <span>{service}</span>
                               {/* <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut> */}
                             </DropdownMenuItem>
                           )}

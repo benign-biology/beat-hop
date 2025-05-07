@@ -27,7 +27,9 @@ const portToPlaylistMap: Record<
     transferId: string,
     signal: AbortSignal,
     update: (update: any) => void,
-    continueFrom: number
+    continueFrom: number,
+    toPlaylistId?: string,
+    searchResults?: Array<beatHopDataResponse<beatHopTrackType>>
   ) => Promise<string>
 > = {
   spotify: createPlaylistAndTransferSongsToSpotify,
@@ -49,7 +51,9 @@ async function portPlaylistToService(
   transferId: string,
   signal: AbortSignal,
   update: (update: string) => void,
-  continueFrom: number
+  continueFrom: number,
+  toPlaylistId?: string,
+  searchResults?: Array<beatHopDataResponse<beatHopTrackType>>
 ) {
   return await portToPlaylistMap[toStreamingService](
     playlistName,
@@ -57,7 +61,9 @@ async function portPlaylistToService(
     transferId,
     signal,
     update,
-    continueFrom
+    continueFrom,
+    toPlaylistId,
+    searchResults
   );
 }
 
@@ -87,14 +93,14 @@ export async function portToService(
   });
 
   // Load persisted state (if any)
-  const persisted = await getFromTransferList(transferId);
-  const persistedState = persisted[0]?.transferItems;
+  const [persisted] = await getFromTransferList(transferId);
+  const persistedState = persisted?.transferItems;
 
   let continueFrom = 0;
   let playlistTracks: beatHopDataResponse<beatHopTrackType>;
   if (persistedState) {
     // Resume from saved state
-    playlistTracks = JSON.parse(persistedState);
+    playlistTracks = persistedState;
     continueFrom = getTransferContinueFromIndex(playlistTracks);
   } else {
     // Start fresh
@@ -102,9 +108,9 @@ export async function portToService(
       fromStreamingService,
       playlistId
     );
-
     await updateTransferStateItems(transferId, playlistTracks);
   }
+
   update(playlistTracks);
 
   if (continueFrom == -1) {
@@ -126,7 +132,9 @@ export async function portToService(
     transferId,
     signal,
     update,
-    continueFrom
+    continueFrom,
+    persisted.toPlaylistId ?? undefined,
+    persisted.transferSearchResults ?? undefined
   );
   await updateTransferStateMeta(transferId, { transferStatus: "complete" });
 }

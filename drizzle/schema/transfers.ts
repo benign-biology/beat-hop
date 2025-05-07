@@ -1,7 +1,11 @@
-import { pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { json, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { Users } from "./user";
 import { streamingServices } from "@/types/streamingServices";
-import { transferStatuses } from "@/types/beatHopStructure";
+import {
+  beatHopDataResponse,
+  beatHopTrackType,
+  transferStatuses,
+} from "@/types/beatHopStructure";
 
 export const streamingServiceEnum = pgEnum(
   "streaming_service",
@@ -15,7 +19,11 @@ export const Transfers = pgTable("transfers", {
   userId: uuid("user_id")
     .notNull()
     .references(() => Users.id, { onDelete: "cascade" }),
-  transferItems: text("transfer_items"),
+  transferItems:
+    json("transfer_items").$type<beatHopDataResponse<beatHopTrackType>>(),
+  transferSearchResults: json("transfer_search_results").$type<
+    Array<beatHopDataResponse<beatHopTrackType>>
+  >(),
   playlistName: text("playlist_name").notNull().default(""),
   toPlaylistId: text("to_playlist_id"),
   fromPlaylistId: text("from_playlist_id").notNull().default(""),

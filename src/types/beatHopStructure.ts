@@ -26,7 +26,7 @@ export type beatHopTrackType = {
   id: string;
   resourceId?: YoutubeResourceId; // for youtube
   uri?: string; // for spotify
-  service?: streamingServiceType;
+  ervice?: streamingServiceType;
   transferStatus?: transferStatusType;
 };
 

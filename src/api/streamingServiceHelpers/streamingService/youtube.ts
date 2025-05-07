@@ -19,7 +19,10 @@ import {
   youtubeTracksToBeatHopData,
   youtubeSearchResultToBeatHopData,
 } from "../toBeatHopStructure";
-import { updateTransferStateItems } from "../transferTrackingHelper";
+import {
+  updateTransferStateItems,
+  updateTransferStateMeta,
+} from "../transferTrackingHelper";
 
 const service: streamingServiceType = "youtube";
 
@@ -197,22 +200,30 @@ export async function addBulkToYoutubePlaylist(
   transferId: string,
   signal: AbortSignal,
   update: (update: any) => void,
-  continueFrom: number = 0
+  continueFrom: number = 0,
+  searchResults?: Array<beatHopDataResponse<beatHopTrackType>>
 ) {
   let shouldStop = false;
   let canForceStop = true;
   signal.addEventListener("abort", () => {
+    console.log("abort");
     shouldStop = true;
     if (canForceStop) return;
   });
 
   // Only search for tracks that haven't been processed yet
   const tracksToSearch = playlistTracks.items.slice(continueFrom);
-  const youtubeSearchPromiseList = tracksToSearch.map((track) => {
-    return searchYoutubeForTrack(`${track.name}`, `${track.artists.join(" ")}`);
-  });
 
-  const youtubeTracks = await Promise.all(youtubeSearchPromiseList);
+  const youtubeTracks =
+    searchResults ??
+    (await Promise.all(
+      tracksToSearch.map((track) => {
+        return searchYoutubeForTrack(
+          `${track.name}`,
+          `${track.artists.join(" ")}`
+        );
+      })
+    ));
   canForceStop = false;
 
   for (const [offset, track] of youtubeTracks.entries()) {
@@ -243,8 +254,9 @@ export async function createPlaylistAndTransferSongsToYoutube(
   continueFrom: number = 0,
   toPlaylistId?: string
 ) {
-  if (continueFrom > 0 || !toPlaylistId) {
+  if (!toPlaylistId) {
     toPlaylistId = (await createYoutubePlaylist(playlistNmae)).id;
+    await updateTransferStateMeta(transferId, { toPlaylistId });
   }
   // const transferId = await saveTransferState(
   //   playlistTracks,

@@ -49,7 +49,7 @@ export const GET = async ({ request, params, nativeEvent }: APIEvent) => {
         const message = `data: ${JSON.stringify(update)}\n\n`;
         controller.enqueue(new TextEncoder().encode(message));
       };
-      request.signal.addEventListener("abort", () => {
+      request.signal.addEventListener("close", () => {
         abortRequested = true;
         setOnHoldController.abort();
       });

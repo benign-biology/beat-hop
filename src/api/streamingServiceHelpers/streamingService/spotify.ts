@@ -65,33 +65,38 @@ async function spotifyFetch(
     getSpotifyAccessToken,
     service
   );
-  return fetch(fullUrl ? path : process.env.SPOTIFY_API_ENDPOINT + path, {
-    method,
-    headers: {
-      Authorization: "Bearer " + accessToken!.authCode,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  const res = await fetch(
+    fullUrl ? path : process.env.SPOTIFY_API_ENDPOINT + path,
+    {
+      method,
+      headers: {
+        Authorization: "Bearer " + accessToken!.authCode,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }
+  );
+  const resJson = await res.json();
+  if (res.status != 200) {
+    console.log(resJson);
+    throw new Error("error");
+  }
+  return resJson;
 }
 
 export async function getSpotifyCurrentUserPlaylists(): Promise<
   SpotifyDataResponse<SpotifyPlaylist>
 > {
-  const playlistResponse = await spotifyFetch(
-    `me/playlists?limit=${itemLength}`
-  );
-  return await playlistResponse.json();
+  return await spotifyFetch(`me/playlists?limit=${itemLength}`);
 }
 
 export async function getSpotifyPlaylistTracks(
   playlistId: string,
   offset: number = 0
 ): Promise<SpotifyDataResponse<SpotifyTrack>> {
-  const playlistTracksResponse = await spotifyFetch(
+  return await spotifyFetch(
     `playlists/${playlistId}/tracks?limit=${itemLength}&offset=${offset}`
   );
-  return await playlistTracksResponse.json();
 }
 
 export async function getConvertedSpotifyCurrentUserPlaylists() {
@@ -126,46 +131,34 @@ export async function getSpotifyPlaylistAllTracks(playlistId: string) {
 }
 
 export async function getSpotifyUser(): Promise<SpotifyUser> {
-  const getUserResponse = await spotifyFetch(`me`, "GET");
-  return await getUserResponse.json();
+  return await spotifyFetch(`me`, "GET");
 }
 
 export async function createSpotifyPlaylist(
   playlistName: string,
   spotifyUserId: string
 ): Promise<SpotifyPlaylist> {
-  const createdPlaylistResponse = await spotifyFetch(
-    `users/${spotifyUserId}/playlists`,
-    "POST",
-    {
-      name: playlistName,
-      description: "Added by BeatHop",
-    }
-  );
-  return await createdPlaylistResponse.json();
+  return await spotifyFetch(`users/${spotifyUserId}/playlists`, "POST", {
+    name: playlistName,
+    description: "Added by BeatHop",
+  });
 }
 
 export async function searchSpotifyForTrack(
   name: string,
   artist: string
 ): Promise<beatHopDataResponse<beatHopTrackType>> {
-  const searchResult = (await (
-    await spotifyFetch(`search?q=track:${name} artist:${artist}&type="track"=5`)
-  ).json()) as SpotifySearchResult;
+  const searchResult = (await spotifyFetch(
+    `search?q=track:${name} artist:${artist}&type="track"=5`
+  )) as SpotifySearchResult;
   // console.log(searchResult);
   return await spotifySearchResultToBeatHopData(searchResult);
 }
 
 export async function addToSpotifyPlaylist(playlistId: string, uris: string[]) {
-  const res = await (
-    await spotifyFetch(`playlists/${playlistId}/tracks`, "POST", {
-      uris,
-    })
-  ).json();
-  if (res.error) {
-    console.log(JSON.stringify(res));
-  }
-  return res;
+  return await spotifyFetch(`playlists/${playlistId}/tracks`, "POST", {
+    uris,
+  });
 }
 
 export async function addBulkToSpotifyPlaylist(
@@ -174,7 +167,8 @@ export async function addBulkToSpotifyPlaylist(
   transferId: string,
   signal: AbortSignal,
   update: (update: any) => void,
-  continueFrom: number = 0
+  continueFrom: number = 0,
+  searchResults?: Array<beatHopDataResponse<beatHopTrackType>>
 ) {
   let shouldStop = false;
   let canForceStop = true;
@@ -183,13 +177,18 @@ export async function addBulkToSpotifyPlaylist(
     if (canForceStop) return;
   });
 
-  const remainingTracks = playlistTracks.items.slice(continueFrom);
+  const tracksToSearch = playlistTracks.items.slice(continueFrom);
 
-  const spotifySearchPromiseList = remainingTracks.map((track) => {
-    return searchSpotifyForTrack(`${track.name}`, `${track.artists.join(" ")}`);
-  });
-
-  const spotifyTracks = await Promise.all(spotifySearchPromiseList);
+  const spotifyTracks =
+    searchResults ??
+    (await Promise.all(
+      tracksToSearch.map((track) => {
+        return searchSpotifyForTrack(
+          `${track.name}`,
+          `${track.artists.join(" ")}`
+        );
+      })
+    ));
 
   const chunkSize = 100;
   const spotifyTracksChunks = Array.from({
@@ -229,10 +228,11 @@ export async function createPlaylistAndTransferSongsToSpotify(
   continueFrom: number = 0,
   toPlaylistId?: string
 ) {
-  if (continueFrom > 0 || !toPlaylistId) {
+  if (!toPlaylistId) {
     toPlaylistId = (
       await createSpotifyPlaylist(playlistNmae, (await getSpotifyUser()).id)
     ).id;
+    await updateTransferStateMeta(transferId, { toPlaylistId });
   }
   // const transferId = await saveTransferState(
   //   playlistTracks,
@@ -240,7 +240,6 @@ export async function createPlaylistAndTransferSongsToSpotify(
   //   fromStreamingService,
   //   "spotify"
   // );
-  await updateTransferStateMeta(transferId, toPlaylistId);
   await addBulkToSpotifyPlaylist(
     toPlaylistId,
     playlistTracks,
